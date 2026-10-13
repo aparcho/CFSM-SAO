@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import "uplot/dist/uPlot.min.css";
 import { InstanceDetails } from "@/components/instance/InstanceDetails";
+import { IperfResults } from "@/components/instance/IperfResults";
 import { PingChart } from "@/components/instance/PingChart";
 import { LoadChart } from "@/components/instance/LoadChart";
 import { Spinner } from "@/components/ui/Spinner";
@@ -153,6 +154,7 @@ export function Instance() {
         返回
       </Link>
       <InstanceDetails uuid={uuid} onNodeReady={alignCharts} />
+      <IperfResults uuid={uuid} />
       <div ref={chartControlsRef} className="instance-chart-controls">
         <div className="instance-segmented">
           <button
