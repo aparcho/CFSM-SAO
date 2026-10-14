@@ -133,8 +133,6 @@ function downsamplePoints(points: ChartPoint[], limit: number) {
 
 function formatRangeSummary(hours: number) {
   if (hours === 0) return "实时";
-  if (hours === 0.167) return "10 分钟";
-  if (hours === 0.5) return "30 分钟";
   if (hours % 24 === 0) return `${hours / 24} 天`;
   return `${hours} 小时`;
 }
