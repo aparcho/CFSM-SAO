@@ -41,6 +41,7 @@ import {
 import { IpStackBadges } from "./IpStackBadges";
 import { HealthBucketTooltip } from "./HealthBucketTooltip";
 import { MultiPingStatus } from "./MultiPingStatus";
+import { NetworkEstimate } from "./NetworkEstimate";
 import { formatHealthBucketTooltip } from "./pingBucketText";
 import { clsx } from "clsx";
 import type { NodeInfo, NodeMetrics, PingOverviewBucket, PingOverviewItem, TrafficTrendSample } from "@/types/cfsm";
@@ -182,6 +183,8 @@ export const NodeCard = memo(function NodeCard({
             />
           )}
         </div>
+
+        <NetworkEstimate uuid={uuid} probes={homepagePingLines} offline={model.isOffline} />
 
         <NodeCardFooter
           expire={expire}

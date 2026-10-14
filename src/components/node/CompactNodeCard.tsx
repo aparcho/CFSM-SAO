@@ -27,6 +27,7 @@ import { supportsFineHover } from "@/utils/mediaQuery";
 import { formatHealthBucketTooltip } from "./pingBucketText";
 import { resolveTouchBucketIndex, TOUCH_BUCKET_HOLD_MS } from "./touchBucketPick";
 import { MultiPingStatus } from "./MultiPingStatus";
+import { NetworkEstimate } from "./NetworkEstimate";
 import {
   formatCompactBillingCycle,
   formatCompactExpire,
@@ -805,6 +806,7 @@ export const CompactNodeCard = memo(function CompactNodeCard({
           pingError={pingError}
         />
       )}
+      <NetworkEstimate uuid={uuid} probes={homepagePingLines} offline={isOffline} />
     </article>
   );
 });
