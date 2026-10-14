@@ -1,7 +1,7 @@
 .network-estimate-badge { cursor:pointer; font-family:inherit; gap:4px; }
 .network-estimate-badge-score { font-variant-numeric:tabular-nums; }
 .network-estimate-badge:focus-visible { outline:2px solid var(--tag-fg); outline-offset:2px; }
-.network-estimate-dialog { width:min(440px,calc(100vw - 32px)); max-height:calc(100dvh - 48px); overflow:auto; padding:20px; border:1px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text); box-shadow:0 16px 60px #0003; }
+.network-estimate-dialog { width:min(440px,calc(100vw - 32px)); max-height:calc(100dvh - 48px); overflow:auto; padding:20px; border:1px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text-primary); margin:auto; box-shadow:0 16px 60px #0003; }
 .network-estimate-dialog::backdrop { background:#0005; }
 .network-estimate-dialog header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .network-estimate-dialog header button { background:none; border:0; color:var(--text-secondary); font-size:24px; cursor:pointer; }
