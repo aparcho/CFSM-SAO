@@ -1260,6 +1260,25 @@ export function installDevMockApi() {
       });
     }
 
+    if (url.pathname === "/api/iperf/results") {
+      const id = url.searchParams.get("id") ?? "";
+      const rows = Array.from({ length: 28 }, (_, run) =>
+        ["ipv4", "ipv6"].flatMap((family, familyIndex) => ["download", "upload"].map((direction, directionIndex) => {
+          const failed = run === 3 && direction === "upload";
+          return { run_id: `mock-iperf-${run}`, server_id: id, source: "deb", family, direction,
+            tested_at: Date.now() - run * 6 * 3600_000, duration_seconds: 10, port: 5202,
+            status: failed ? "no_response" : "ok", mbps: failed ? null : Math.round((directionIndex ? 150 : 900) + Math.sin(run) * 100 + familyIndex * 30),
+            retransmits: failed ? null : run * 17, error: failed ? "测试样例：无响应" : null };
+        })),
+      ).flat();
+      if (url.searchParams.get("view") === "history") {
+        const pageSize = Number(url.searchParams.get("page_size") || 5);
+        const page = Math.min(Number(url.searchParams.get("page") || 1), Math.ceil(28 / pageSize));
+        return json({ rows: rows.slice((page - 1) * pageSize * 4, page * pageSize * 4), page, page_size: pageSize, total_runs: 28 });
+      }
+      return json(rows.slice(0, 80));
+    }
+
     if (url.pathname === "/api/history/all") {
       const id = url.searchParams.get("id") ?? "";
       const hours = Number.parseFloat(url.searchParams.get("hours") ?? "24") || 24;
