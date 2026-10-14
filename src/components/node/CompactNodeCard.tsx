@@ -39,7 +39,6 @@ import {
   pingEmptyLabels,
   TRAFFIC_SLIVER_RATIO,
 } from "./nodeCardShared";
-import { IpStackBadges } from "./IpStackBadges";
 import type {
   NodeInfo,
   NodeMetrics,
@@ -389,7 +388,13 @@ function CompactNodeChips({
   tags,
   ipv4,
   ipv6,
+  uuid,
+  probes,
+  offline,
 }: {
+  uuid: string;
+  probes: import("@/utils/networkEstimate").EstimateProbe[];
+  offline: boolean;
   subtitle: string;
   tags: CompactTag[];
   ipv4?: string | null;
@@ -406,7 +411,7 @@ function CompactNodeChips({
           {subtitle}
         </span>
       )}
-      <IpStackBadges ipv4={ipv4} ipv6={ipv6} />
+      <NetworkEstimate uuid={uuid} probes={probes} offline={offline} ipv4={ipv4} ipv6={ipv6} />
       {tags.length > 0 && (
         <div className="compact-node-tag-lane" title={tagTitle}>
           {tags.map((tag, index) => (
@@ -768,7 +773,7 @@ export const CompactNodeCard = memo(function CompactNodeCard({
         node={node}
         osName={osName}
       />
-      <CompactNodeChips subtitle={subtitle} tags={footerTags} ipv4={node.ipv4} ipv6={node.ipv6} />
+      <CompactNodeChips uuid={uuid} probes={homepagePingLines} offline={isOffline} subtitle={subtitle} tags={footerTags} ipv4={node.ipv4} ipv6={node.ipv6} />
       <CompactNodeVitals node={node} loadFraction={loadFraction} />
       <CompactNodeInfoStrip
         node={node}
@@ -806,7 +811,6 @@ export const CompactNodeCard = memo(function CompactNodeCard({
           pingError={pingError}
         />
       )}
-      <NetworkEstimate uuid={uuid} probes={homepagePingLines} offline={isOffline} />
     </article>
   );
 });

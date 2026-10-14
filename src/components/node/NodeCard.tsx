@@ -38,7 +38,6 @@ import {
   pingEmptyLabels,
   TRAFFIC_SLIVER_RATIO,
 } from "./nodeCardShared";
-import { IpStackBadges } from "./IpStackBadges";
 import { HealthBucketTooltip } from "./HealthBucketTooltip";
 import { MultiPingStatus } from "./MultiPingStatus";
 import { NetworkEstimate } from "./NetworkEstimate";
@@ -119,6 +118,8 @@ export const NodeCard = memo(function NodeCard({
           node={node}
           subtitle={subtitle}
           osName={osName}
+          probes={homepagePingLines}
+          offline={model.isOffline}
         />
 
         <div className="server-card-stack">
@@ -184,8 +185,6 @@ export const NodeCard = memo(function NodeCard({
           )}
         </div>
 
-        <NetworkEstimate uuid={uuid} probes={homepagePingLines} offline={model.isOffline} />
-
         <NodeCardFooter
           expire={expire}
           expireColor={expireColor}
@@ -202,10 +201,14 @@ function NodeCardHeader({
   node,
   subtitle,
   osName,
+  probes,
+  offline,
 }: {
   node: NodeCardNode;
   subtitle: string;
   osName: string;
+  probes: import("@/utils/networkEstimate").EstimateProbe[];
+  offline: boolean;
 }) {
   const detailLabels = nodeDetailLinkLabels(node.name, osName);
   return (
@@ -228,7 +231,7 @@ function NodeCardHeader({
                 {subtitle}
               </span>
             )}
-            <IpStackBadges ipv4={node.ipv4} ipv6={node.ipv6} />
+            <NetworkEstimate uuid={node.uuid} probes={probes} offline={offline} ipv4={node.ipv4} ipv6={node.ipv6} />
           </div>
         )}
       </div>
