@@ -47,7 +47,7 @@ export function IperfTrendChart({ label, color, points }: {
       axes: [
         { stroke: text, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid }, size: 42, space: 88,
           values: (_self, splits) => splits.map((time) => formatChartCoverageTime(time).replace(" ", "\n")) },
-        { stroke: text, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid }, size: 62,
+        { stroke: text, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid }, size: 84,
           values: (_self, splits) => splits.map((value) => `${value < 10 ? value.toFixed(1) : Math.round(value)} Mbps`) },
       ],
       series: [{ label: "time" }, { label, stroke: color, fill: `${color}22`, width: 1.6, spanGaps: false, points: { show: true, size: 5 } }],
