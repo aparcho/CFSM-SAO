@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import "uplot/dist/uPlot.min.css";
 import { InstanceDetails } from "@/components/instance/InstanceDetails";
 import { IperfResults } from "@/components/instance/IperfResults";
+import { IperfHistory } from "@/components/instance/IperfHistory";
 import { PingChart } from "@/components/instance/PingChart";
 import { LoadChart } from "@/components/instance/LoadChart";
 import { Spinner } from "@/components/ui/Spinner";
@@ -57,7 +58,8 @@ export function Instance() {
   const storeStatus = useNodeStoreStatus(Boolean(uuid));
   // 详情页只订阅这一台的实时推送（后端文档：详情页不要订阅全量再在前端过滤）。
   useRealtimeFocus(uuid);
-  const [chartType, setChartType] = useState<"load" | "ping">("load");
+  const [chartType, setChartType] = useState<"load" | "ping" | "iperf">("load");
+  const [iperfCount, setIperfCount] = useState(10);
   const [loadHours, setLoadHours] = useState(DEFAULT_LOAD_HOURS);
   const [pingHours, setPingHours] = useState(DEFAULT_PING_HOURS);
   const chartControlsRef = useRef<HTMLDivElement | null>(null);
@@ -179,6 +181,14 @@ export function Instance() {
               Ping
             </button>
           )}
+          <button
+            type="button"
+            data-active={chartType === "iperf" ? "true" : "false"}
+            aria-pressed={chartType === "iperf"}
+            onClick={() => startTransition(() => setChartType("iperf"))}
+          >
+            测速
+          </button>
         </div>
         {chartType === "load" && (
           <RangeSelector
@@ -193,6 +203,16 @@ export function Instance() {
             value={pingHours}
             onChange={(value) => startTransition(() => setPingHours(value))}
           />
+        )}
+        {chartType === "iperf" && (
+          <div className="instance-segmented">
+            {[5, 10, 20].map((count) => (
+              <button key={count} type="button" data-active={iperfCount === count ? "true" : "false"}
+                aria-pressed={iperfCount === count} onClick={() => setIperfCount(count)}>
+                最近 {count} 次
+              </button>
+            ))}
+          </div>
         )}
       </div>
       <div className="instance-chart-stage">
@@ -215,6 +235,9 @@ export function Instance() {
               active={chartType === "ping"}
             />
           ) : null}
+        </div>
+        <div className="instance-chart-view" hidden={chartType !== "iperf"} aria-hidden={chartType !== "iperf"}>
+          {chartType === "iperf" ? <IperfHistory uuid={uuid} count={iperfCount} /> : null}
         </div>
       </div>
     </div>
