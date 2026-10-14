@@ -75,15 +75,26 @@ export function IperfHistory({ uuid, count }: { uuid: string; count: number }) {
             const latest = runs[0].results.get(lane.key);
             return <div className="iperf-history-card" key={lane.key}>
               <div className="iperf-history-card-head"><strong>{lane.label}</strong><span>{valueLabel(latest)}</span></div>
-              <div className="iperf-history-bars" role="img" aria-label={`${lane.label}，最近 ${runs.length} 次测试`}>
-                {values.map((row, index) => <div className="iperf-history-bar-slot" key={oldestFirst[index].id}
-                  title={`${new Date(oldestFirst[index].time).toLocaleString("zh-CN")} · ${valueLabel(row)}${row?.status === "ok" ? ` · TCP 重传 ${row.retransmits} 次` : row?.error ? ` · ${row.error}` : ""}`}>
-                  <div className={`iperf-history-bar${row?.status !== "ok" ? " is-missing" : ""}`}
-                    style={{ height: row?.status === "ok" ? `${Math.max(3, (row.mbps ?? 0) / max * 100)}%` : "3px",
-                      backgroundColor: row?.status === "ok" ? lane.color : undefined }} />
-                </div>)}
+              <div className="iperf-history-scroll" role="group" aria-label={`${lane.label}，最近 ${runs.length} 次测试`}>
+                <div className="iperf-history-bars" style={{ minWidth: `${values.length * 68}px` }}>
+                  {values.map((row, index) => {
+                    const run = oldestFirst[index];
+                    const testedAt = new Date(run.time);
+                    return <div className="iperf-history-bar-slot" key={run.id}
+                      title={`${testedAt.toLocaleString("zh-CN")} · ${valueLabel(row)}${row?.status === "ok" ? ` · TCP 重传 ${row.retransmits} 次` : row?.error ? ` · ${row.error}` : ""}`}>
+                      <div className="iperf-history-bar-track">
+                        <div className={`iperf-history-bar${row?.status !== "ok" ? " is-missing" : ""}`}
+                          style={{ height: row?.status === "ok" ? `${Math.max(3, (row.mbps ?? 0) / max * 100)}%` : "3px",
+                            backgroundColor: row?.status === "ok" ? lane.color : undefined }} />
+                      </div>
+                      <time className="iperf-history-bar-time" dateTime={testedAt.toISOString()}>
+                        <span>{testedAt.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" })}</span>
+                        <span>{testedAt.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
+                      </time>
+                    </div>;
+                  })}
+                </div>
               </div>
-              <div className="iperf-history-axis"><span>较早</span><span>最近</span></div>
             </div>;
           })}
         </div>
