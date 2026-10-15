@@ -26,11 +26,20 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
       <header><strong>网络估算依据</strong><button type="button" onClick={() => setSelected(null)} aria-label="关闭评分依据">×</button></header>
     <div className="network-estimate-body">
       {estimates.filter(s => s.family === selected).map(s => <div className="network-estimate-family" key={s.family}><b>IPv{s.family === "ipv4" ? "4" : "6"} · {query.isError ? "测速读取失败" : query.isPending ? "加载中" : s.reason}{s.score != null && !query.isError ? ` · ${s.score}/100` : ""}</b>
-        <span>{s.probe?.taskName ?? "未配置对应地址族探针"} · 延迟 {s.probe?.lastValue == null ? "—" : `${Math.round(s.probe.lastValue)} ms`} · 探测失败 {s.probe?.loss == null ? "—" : `${s.probe.loss.toFixed(1)}%`}</span>
+        <span>{s.probe?.taskName ?? "未配置对应地址族探针"} · 当前延迟 {s.probe?.lastValue == null ? "—" : `${Math.round(s.probe.lastValue)} ms`} · 探测失败 {s.probe?.loss == null ? "—" : `${s.probe.loss.toFixed(1)}%`}</span>
+        {s.metrics && <span>近 2 小时探针：{s.metrics.samples} 个有效采样 · P50 {s.metrics.p50?.toFixed(1) ?? "—"} ms · P95 {s.metrics.p95?.toFixed(1) ?? "—"} ms</span>}
+        {s.metrics && <span>延迟波动 {s.metrics.variationMs?.toFixed(1) ?? "样本不足"}{s.metrics.variationMs != null ? " ms" : ""} · {s.metrics.pairs} 对连续采样（非包级抖动）</span>}
         {s.testedAt && <><span>deb 下载 {s.download?.status === "ok" ? `${s.download.mbps?.toFixed(1)} Mbps` : s.download?.status === "no_response" ? "无响应" : "—"} · 上传 {s.upload?.status === "ok" ? `${s.upload.mbps?.toFixed(1)} Mbps` : s.upload?.status === "no_response" ? "无响应" : "—"}</span><span>测速：{new Date(s.testedAt).toLocaleString("zh-CN")}</span></>}
-        {s.score != null && <span>计分：延迟 {s.latency} ＋ 失败率 {s.loss} ＋ 带宽 {s.speed?.toFixed(1)}；÷60×100</span>}
+        {s.peak && <span>晚高峰：{s.peak.days} 天 / {s.peak.runs} 批 · 日汇总下载 {s.peak.download.toFixed(1)} / 上传 {s.peak.upload.toFixed(1)} Mbps</span>}
+        {s.offpeak && <span>其余时段：{s.offpeak.days} 天 / {s.offpeak.runs} 批 · 日汇总下载 {s.offpeak.download.toFixed(1)} / 上传 {s.offpeak.upload.toFixed(1)} Mbps</span>}
+        {s.score != null && <>
+          <span>单项分 / 100：延迟 {s.latency?.toFixed(1)} · 失败率 {s.loss?.toFixed(1)} · 带宽 {s.speed?.toFixed(1)} · 波动 {s.variation?.toFixed(1) ?? "未计"}</span>
+          <span>权重：延迟 30% / 失败率 20% / 带宽 40% / 波动 10%{s.variation == null ? "；波动缺项，按其余 90% 归一" : ""}。带宽内晚高峰占 {(s.peakWeight*100).toFixed(0)}%。</span>
+        </>}
       </div>)}
-      <p>AIM 规则适配估算 v0.1；带宽按下载 70% / 上传 30%，100 Mbps 以上同档。结合当前探针线路与 deb 测速，非同路径实测评分；未计抖动和负载延迟。24 小时后标较旧，72 小时后不计分。</p>
+      <p>自定义线路估算 v0.2，参考 AIM 指标。延迟按 10 ms 分档，计分使用 70% P50＋30% P95；不足 5 个采样时用当前延迟。波动取相邻有效采样延迟绝对差的均值，失败或缺测处断开，至少需 5 对。</p>
+      <p>带宽取接口返回的近 72 小时记录，先按日、时段汇总再跨日取中位数；北京时间 20:00–23:00 占 70%，其余时段占 30%，时段缺项时暂按已有样本。下载 / 上传各占 70% / 30%，速度曲线区分至 2000 Mbps。</p>
+      <p>当前探针窗口与 deb 测速是不同路径；晚高峰权重只用于带宽历史。非官方完整 AIM，未计包级抖动及负载延迟。24 小时后标较旧，72 小时后不计分。</p>
     </div>
     </dialog>, document.body)}
   </>;
