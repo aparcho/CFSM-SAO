@@ -2259,3 +2259,7 @@
   }
 
 }
+
+/* 持续探测复用原有测速图表与卡片，只增加同区切换和紧凑状态行。 */
+.netwatch-view-switch{display:flex;flex-wrap:wrap;gap:6px}.netwatch-view-switch [data-active=true]{background:var(--surface-hover);font-weight:600}
+.netwatch-status,.netwatch-quality{display:flex;flex-wrap:wrap;gap:10px 24px;color:var(--text-secondary);font-size:12px;margin-bottom:16px}.netwatch-quality small{display:block;color:var(--text-tertiary);margin-top:5px}

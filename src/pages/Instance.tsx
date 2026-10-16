@@ -59,6 +59,8 @@ export function Instance() {
   useRealtimeFocus(uuid);
   const [chartType, setChartType] = useState<"load" | "ping" | "iperf">("load");
   const [iperfCount, setIperfCount] = useState(10);
+  const [iperfMode,setIperfMode]=useState<"regular"|"continuous"|"compare">("regular");
+  const [netwatchHours,setNetwatchHours]=useState(24);
   const [loadHours, setLoadHours] = useState(DEFAULT_LOAD_HOURS);
   const [pingHours, setPingHours] = useState(DEFAULT_PING_HOURS);
   const chartControlsRef = useRef<HTMLDivElement | null>(null);
@@ -202,7 +204,7 @@ export function Instance() {
             onChange={(value) => startTransition(() => setPingHours(value))}
           />
         )}
-        {chartType === "iperf" && (
+        {chartType === "iperf" && iperfMode === "regular" && (
           <div className="instance-segmented">
             {[5, 10, 20].map((count) => (
               <button key={count} type="button" data-active={iperfCount === count ? "true" : "false"}
@@ -212,6 +214,7 @@ export function Instance() {
             ))}
           </div>
         )}
+        {chartType === "iperf" && iperfMode !== "regular" && <div className="instance-segmented">{[1,6,24].map(hours=><button type="button" key={hours} data-active={netwatchHours===hours?"true":"false"} aria-pressed={netwatchHours===hours} onClick={()=>setNetwatchHours(hours)}>最近 {hours} 小时</button>)}</div>}
       </div>
       <div className="instance-chart-stage">
         <div
@@ -235,7 +238,7 @@ export function Instance() {
           ) : null}
         </div>
         <div className="instance-chart-view" hidden={chartType !== "iperf"} aria-hidden={chartType !== "iperf"}>
-          {chartType === "iperf" ? <IperfHistory uuid={uuid} count={iperfCount} /> : null}
+          {chartType === "iperf" ? <IperfHistory uuid={uuid} count={iperfCount} mode={iperfMode} onModeChange={setIperfMode} hours={netwatchHours} /> : null}
         </div>
       </div>
     </div>

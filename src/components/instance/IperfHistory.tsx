@@ -3,6 +3,7 @@ import { z } from "zod";
 import { RefreshCw } from "lucide-react";
 import { cfsmGet } from "@/services/cfsm/http";
 import { getServerApiBase } from "@/services/api";
+import { NetwatchHistory } from "./NetwatchHistory";
 import { InstancePanel } from "./InstancePanel";
 import { IperfTrendChart } from "./IperfTrendChart";
 import { CHART_PALETTE } from "./chartShared";
@@ -48,7 +49,7 @@ function valueLabel(row?: Result) {
   return `${row.mbps?.toFixed(2)} Mbps`;
 }
 
-export function IperfHistory({ uuid, count }: { uuid: string; count: number }) {
+export function IperfHistory({ uuid, count, mode, onModeChange, hours }: { uuid: string; count: number; mode: "regular"|"continuous"|"compare"; onModeChange:(mode:"regular"|"continuous"|"compare")=>void; hours:number }) {
   const [rows, setRows] = useState<Result[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [revision, setRevision] = useState(0);
@@ -79,12 +80,12 @@ export function IperfHistory({ uuid, count }: { uuid: string; count: number }) {
   const totalPages = Math.max(1, Math.ceil((history?.total_runs ?? 0) / 5));
   const changePage = (next: number) => { setHistoryState("loading"); setPage(next); };
 
-  return <InstancePanel title="iperf3 测速历史" className="iperf-history-panel instance-chart-panel"
+  return <InstancePanel title={mode === "regular" ? "iperf3 测速历史" : mode === "continuous" ? "持续速度探测" : "网络测速对照验证"} className="iperf-history-panel instance-chart-panel"
     description="从 deb 发起的公网 TCP 单流测试；每个点代表一次测试，下载、上传均以 deb 为视角。"
-    aside={<button type="button" className="instance-toggle-button" disabled={state === "loading"} onClick={() => { setState("loading"); setHistoryState("loading"); setRevision((n) => n + 1); }}>
+    aside={<div className="netwatch-view-switch">{([{value:"regular",label:"常规测速"},{value:"continuous",label:"持续探测"},{value:"compare",label:"对照验证"}] as const).map(item=><button key={item.value} type="button" className="instance-toggle-button" data-active={mode===item.value?"true":"false"} aria-pressed={mode===item.value} onClick={()=>onModeChange(item.value)}>{item.label}</button>)}<button type="button" className="instance-toggle-button" disabled={state === "loading"} onClick={() => { setState("loading"); setHistoryState("loading"); setRevision((n) => n + 1); }}>
       <RefreshCw size={14} aria-hidden />刷新
-    </button>}>
-    {state === "loading" ? <div className="instance-empty">加载测速历史…</div> :
+    </button></div>}>
+    {mode !== "regular" ? <NetwatchHistory key={uuid+mode+hours} uuid={uuid} mode={mode} hours={hours} refreshKey={revision} /> : state === "loading" ? <div className="instance-empty">加载测速历史…</div> :
       state === "error" ? <div className="instance-empty">测速历史暂不可用，请稍后重试。</div> :
       runs.length === 0 ? <div className="instance-empty">暂无测速历史。可在 CFSM 管理后台的“测速”页手动发起。</div> : <>
         <div className="iperf-history-grid">
