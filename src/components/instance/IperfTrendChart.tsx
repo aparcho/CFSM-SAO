@@ -36,7 +36,7 @@ export function IperfTrendChart({ label, color, points }: {
         const value = !result ? "未记录" : result.status === "ok" ? `${result.mbps?.toFixed(2)} Mbps` : result.status === "no_response" ? "无响应" : "失败";
         return [
           { label, value, color },
-          ...(result?.status === "ok" ? [{ label: "TCP 重传", value: `${result.retransmits} 次`, color }] : []),
+          ...(result?.status === "ok" ? [{ label: "TCP 重传", value: `${result.retransmits ?? "未知"} 次`, color }] : []),
         ];
       },
     });
