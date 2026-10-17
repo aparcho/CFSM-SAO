@@ -39,7 +39,7 @@ function curve(value: number, anchors: readonly (readonly [number, number])[]) {
 export const latencyScore = (ms: number) => curve(Math.ceil(ms / 10) * 10,
   [[0,100],[50,90],[100,75],[150,60],[200,45],[300,20],[500,0]]);
 export const bandwidthScore = (mbps: number) => curve(Math.log1p(mbps),
-  [[0,0],[1,10],[10,30],[50,55],[100,65],[300,80],[1000,95],[2000,100]].map(([x,y]) => [Math.log1p(x),y] as const));
+  [[0,0],[1,5],[10,15],[50,30],[100,40],[200,55],[300,65],[500,80],[1000,95],[2000,100]].map(([x,y]) => [Math.log1p(x),y] as const));
 export const failureScore = (pct: number) => curve(pct,
   [[0,100],[0.1,98],[0.5,90],[1,80],[2,65],[5,35],[10,10],[20,0]]);
 // 自定义轻微惩罚，不是 TCP 丢包率。传输量由 Mbps×配置时长近似，过小样本不计。
@@ -111,7 +111,7 @@ export function estimateNetwork(family: Family, probes: EstimateProbe[], results
   const batch = latest ? familyRows.filter(r => r.run_id === latest.run_id) : [];
   const download = batch.find(r => r.direction === "download"), upload = batch.find(r => r.direction === "upload");
   const metrics = probe ? probeVariation(probe,now) : null;
-  const base = {modelVersion:4,family,probe,testedAt:latest?.tested_at,download,upload,metrics,
+  const base = {modelVersion:5,family,probe,testedAt:latest?.tested_at,download,upload,metrics,
     speedAgeMs:latest?Math.max(0,now-latest.tested_at):null,speedBasis:"latest" as const,
     retransmission:null as {penalty:number;download:ReturnType<typeof retransmissionCost>;upload:ReturnType<typeof retransmissionCost>}|null,
     latency:null as number|null,loss:null as number|null,speed:null as number|null,variation:null as number|null,
@@ -150,5 +150,5 @@ export function estimateNetwork(family: Family, probes: EstimateProbe[], results
   const score = probe.loss === 100 ? 0 : Math.max(0,Math.round(total/(variation == null ? 0.9 : 1)-(retransmission?.penalty??0)));
   const notes = [age>6*HOUR?"带宽为较早实测参考":age>HOUR?"带宽非当前实测":"",variation == null ? "近期波动样本不足" : ""].filter(Boolean);
   return {...base,score,retransmission,latency,loss,speed,variation,latencyMs,peak,offpeak,peakWeight,excludedBatches,
-    reason:notes.length ? `暂估 · ${notes.join(" · ")}` : "当前估算 v0.4"};
+    reason:notes.length ? `暂估 · ${notes.join(" · ")}` : "当前估算 v0.5"};
 }

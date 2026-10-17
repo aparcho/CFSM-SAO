@@ -90,3 +90,13 @@ it('重传是小幅辅助项：同速高重传略低，按传输量归一化且�
  expect(estimateNetwork('ipv4',probe,batch('old',now,500,500),now,false).retransmission).toBeNull();
  expect(retransmissionCost({...withRetrans(57)[0],mbps:0.84})).toBeNull();
 });
+
+it('百兆与稳定500Mbps拉开通用评分差距：不按节点名称调分',()=>{
+ expect(bandwidthScore(100)).toBe(40);expect(bandwidthScore(300)).toBe(65);expect(bandwidthScore(500)).toBe(80);
+ const modest=estimateNetwork('ipv4',probe,batch('latest',now,126.7,130.2),now,false);
+ const fast=estimateNetwork('ipv4',probe,batch('latest',now,500,200),now,false);
+ expect(modest.score!).toBeLessThan(75);expect(fast.score!).toBeGreaterThanOrEqual(80);
+ expect(fast.score!-modest.score!).toBeGreaterThanOrEqual(10);
+ const perfect=[{...probe[0],lastValue:5,samples:probe[0].samples.map(r=>({...r,value:5}))}];
+ expect(estimateNetwork('ipv4',perfect,batch('latest',now,100,100),now,false).score!).toBeLessThan(80);
+});

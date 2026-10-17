@@ -39,7 +39,7 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
   const query = useQuery({ queryKey:["network-estimate",uuid], queryFn:() => cfsmGet(`/api/iperf/results?${new URLSearchParams({id:uuid})}`,schema,{base:getServerApiBase(uuid)}), staleTime:60_000,refetchInterval:60_000,retry:1 });
   const estimates = (["ipv4","ipv6"] as Family[]).map(f => {
     const stored=liveRoutes.find(r=>r.server_id===uuid && r.family===f)?.estimate;
-    return stored?.modelVersion===4?stored:estimateNetwork(f,probes,query.data ?? [],now,offline);
+    return stored?.modelVersion===5?stored:estimateNetwork(f,probes,query.data ?? [],now,offline);
   });
   return <>
     {estimates.filter(s => s.family === "ipv4" ? ipv4 : ipv6).map(s => {
@@ -70,8 +70,8 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
           <span>权重：延迟 30% / 失败率 20% / 带宽 40% / 波动 10%{s.variation == null ? "；波动缺项，按其余 90% 归一" : ""}。带宽只采用最近一次完整实测，不再混合历史时段。</span>
         </>}
       </div>)}
-      <p>当前线路估算 v0.4，参考 AIM 指标。延迟、失败率与波动仅使用近 10 分钟；延迟按 10 ms 分档，70% 当前延迟＋30% 近期 P95，不足 3 个采样时用当前延迟。波动取相邻有效采样延迟绝对差的均值，失败或缺测处断开，至少需 5 对。</p>
-      <p>带宽采用最近一批双向测速，下载 / 上传各占 70% / 30%，速度曲线区分至 2000 Mbps。最新失败或不完整时不沿用旧高速造分。历史晚高峰仍可参考，但不改变当前分数。重传作为辅助扣分项，下载 / 上传按 70% / 30% 合并，缺项不额外扣分。</p>
+      <p>当前线路估算 v0.5，参考 AIM 指标。延迟、失败率与波动仅使用近 10 分钟；延迟按 10 ms 分档，70% 当前延迟＋30% 近期 P95，不足 3 个采样时用当前延迟。波动取相邻有效采样延迟绝对差的均值，失败或缺测处断开，至少需 5 对。</p>
+      <p>带宽采用最近一批双向测速，下载 / 上传各占 70% / 30%，带宽单项锚点：100 Mbps 为 40 分、200 为 55 分、300 为 65 分、500 为 80 分、1000 为 95 分，区分至 2000 Mbps。这些是自定义体验标尺，不是官方 AIM 标准。最新失败或不完整时不沿用旧高速造分。历史晚高峰仍可参考，但不改变当前分数。重传作为辅助扣分项，下载 / 上传按 70% / 30% 合并，缺项不额外扣分。</p>
       <p>当前探针与 deb 测速是不同路径。带宽超过 1 小时提示非当前实测，超过 6 小时标记较早参考，超过 72 小时不计分；无新测速不能证明当前带宽未变。非官方完整 AIM，未计包级抖动及负载延迟。</p>
     </div>
     </dialog>, document.body)}
