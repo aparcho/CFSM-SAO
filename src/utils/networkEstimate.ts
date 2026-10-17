@@ -111,7 +111,7 @@ export function estimateNetwork(family: Family, probes: EstimateProbe[], results
   const batch = latest ? familyRows.filter(r => r.run_id === latest.run_id) : [];
   const download = batch.find(r => r.direction === "download"), upload = batch.find(r => r.direction === "upload");
   const metrics = probe ? probeVariation(probe,now) : null;
-  const base = {modelVersion:6,family,probe,testedAt:latest?.tested_at,download,upload,metrics,
+  const base = {modelVersion:7,family,probe,testedAt:latest?.tested_at,download,upload,metrics,
     speedAgeMs:latest?Math.max(0,now-latest.tested_at):null,speedBasis:"latest" as const,
     retransmission:null as {penalty:number;download:ReturnType<typeof retransmissionCost>;upload:ReturnType<typeof retransmissionCost>}|null,
     latency:null as number|null,loss:null as number|null,speed:null as number|null,variation:null as number|null,
@@ -147,8 +147,8 @@ export function estimateNetwork(family: Family, probes: EstimateProbe[], results
   const rd=retransmissionCost(download),ru=retransmissionCost(upload);
   // 缺项不按零重传显示，也不额外奖分；仅对有依据的方向扣分，避免缺项放大惩罚。
   const retransmission=rd || ru?{penalty:0.7*(rd?.penalty??0)+0.3*(ru?.penalty??0),download:rd,upload:ru}:null;
-  const score = probe.loss === 100 ? 0 : Math.max(0,Math.round(total/(variation == null ? 0.9 : 1)-(retransmission?.penalty??0)));
+  const score = probe.loss === 100 ? 0 : Math.max(0,Math.round((total/(variation == null ? 0.9 : 1)-(retransmission?.penalty??0))*10)/10);
   const notes = [age>6*HOUR?"带宽为较早实测参考":age>HOUR?"带宽非当前实测":"",variation == null ? "近期波动样本不足" : ""].filter(Boolean);
   return {...base,score,retransmission,latency,loss,speed,variation,latencyMs,peak,offpeak,peakWeight,excludedBatches,
-    reason:notes.length ? `暂估 · ${notes.join(" · ")}` : "当前估算 v0.6"};
+    reason:notes.length ? `暂估 · ${notes.join(" · ")}` : "当前估算 v0.7"};
 }

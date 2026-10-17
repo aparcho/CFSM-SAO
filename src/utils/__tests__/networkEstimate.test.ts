@@ -85,7 +85,7 @@ it('重传是小幅辅助项：同速高重传略低，按传输量归一化且�
  expect(retransmissionCost(withRetrans(30000)[0])?.perMiB).toBeCloseTo(retransmissionCost(withRetrans(60000,10)[0])!.perMiB);
  const saturated=estimateNetwork('ipv4',probe,withRetrans(1000000000),now,false);
  expect(saturated.retransmission?.penalty).toBeCloseTo(3);
- expect(clean.score!-saturated.score!).toBe(3);
+ expect(clean.score!-saturated.score!).toBeCloseTo(3);
  // 旧数据/未知不能伪装成0重传；低吞吐小样本已经通过带宽扣分，不放大噪声。
  expect(estimateNetwork('ipv4',probe,batch('old',now,500,500),now,false).retransmission).toBeNull();
  expect(retransmissionCost({...withRetrans(57)[0],mbps:0.84})).toBeNull();
@@ -100,3 +100,17 @@ it('百兆与稳定500Mbps拉开通用评分差距：不按节点名称调分',(
  const perfect=[{...probe[0],lastValue:5,samples:probe[0].samples.map(r=>({...r,value:5}))}];
  expect(estimateNetwork('ipv4',perfect,batch('latest',now,100,100),now,false).score!).toBeLessThan(80);
 });
+
+ it('500–1000Mbps连续区分，保留一位小数且前后标尺不变',()=>{
+  const speeds=[500,550,600,650,700,750,800,850,900,950,1000];
+  const scores=speeds.map(down=>estimateNetwork('ipv4',probe,batch('latest',now,down,200),now,false).score!);
+  for(let i=1;i<speeds.length;i++){
+   expect(bandwidthScore(speeds[i])).toBeGreaterThan(bandwidthScore(speeds[i-1]));
+   expect(scores[i]).toBeGreaterThan(scores[i-1]);
+  }
+  expect(bandwidthScore(500)).toBe(80);expect(bandwidthScore(1000)).toBe(95);
+  expect(bandwidthScore(650)).toBeGreaterThan(bandwidthScore(600));
+  expect(scores.some(score=>!Number.isInteger(score))).toBe(true);
+  for(const score of scores)expect(score*10).toBeCloseTo(Math.round(score*10));
+  expect(estimateNetwork('ipv4',probe,batch('latest',now,700,200),now,false).modelVersion).toBe(7);
+ });
