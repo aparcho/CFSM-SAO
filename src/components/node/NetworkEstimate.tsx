@@ -7,6 +7,7 @@ import { getServerApiBase } from "@/services/api";
 import { useMinuteClock } from "@/hooks/useClock";
 import { estimateNetwork, type EstimateProbe, type Family } from "@/utils/networkEstimate";
 import "@/styles/network-estimate.css";
+import { cacheKey, readNikkiCache, saveNikkiCache, NIKKI_FRESH_MS } from "@/utils/nikkiCache";
 const schema = z.array(z.object({ run_id:z.string(),family:z.enum(["ipv4","ipv6"]),direction:z.enum(["download","upload"]),tested_at:z.number(),status:z.enum(["ok","no_response","failed"]),mbps:z.number().nullable() }));
 const nullableNumber=z.number().nullable();
 const periodSchema=z.object({score:z.number(),days:z.number(),runs:z.number(),download:z.number(),upload:z.number()}).nullable();
@@ -24,8 +25,12 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
   useEffect(() => { if (selected && dialog.current && !dialog.current.open) dialog.current.showModal(); }, [selected]);
   const now = useMinuteClock();
   const base=getServerApiBase(uuid);
-  const nikki=useQuery({queryKey:["nikki-status",base],queryFn:()=>cfsmGet('/api/nikki/status',nikkiSchema,{base}),staleTime:15_000,refetchInterval:30_000,retry:1});
-  const liveRoutes=!nikki.isError && nikki.data?.fresh && nikki.data.observed_at!=null && Date.now()-nikki.data.observed_at<=150_000 ? nikki.data.routes:[];
+  const nikkiKey=cacheKey(base);
+  const nikki=useQuery({queryKey:["nikki-status",nikkiKey],
+    initialData:()=>readNikkiCache(nikkiKey,nikkiSchema),initialDataUpdatedAt:0,
+    queryFn:async()=>{const snapshot=await cfsmGet('/api/nikki/status',nikkiSchema,{base});saveNikkiCache(nikkiKey,snapshot);return snapshot;},
+    staleTime:15_000,refetchInterval:15_000,retry:1});
+  const liveRoutes=nikki.data?.fresh && nikki.data.observed_at!=null && Date.now()-nikki.data.observed_at<=NIKKI_FRESH_MS ? nikki.data.routes:[];
   const query = useQuery({ queryKey:["network-estimate",uuid], queryFn:() => cfsmGet(`/api/iperf/results?${new URLSearchParams({id:uuid})}`,schema,{base:getServerApiBase(uuid)}), staleTime:60_000,refetchInterval:60_000,retry:1 });
   const estimates = (["ipv4","ipv6"] as Family[]).map(f => liveRoutes.find(r=>r.server_id===uuid && r.family===f)?.estimate ?? estimateNetwork(f,probes,query.data ?? [],now,offline));
   return <>
@@ -36,7 +41,7 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
       return <button type="button" key={s.family} className="ip-stack-badge network-estimate-badge" data-tag={low?'red':active?'green':standby?'yellow':'gray'} data-nikki-active={active?'true':undefined} data-nikki-selected={route?.selected?'true':undefined} data-nikki-low={low?'true':undefined}
       onClick={e => { e.stopPropagation(); setSelected(s.family); }}
       aria-label={`IPv${s.family === "ipv4" ? "4" : "6"} 网络估算${s.score != null && !query.isError ? ` ${s.score}分` : ""}，查看依据`}
-      title={`${active?'Nikki 实时入口 · ':standby?'Nikki 分流待用入口 · ':''}${low?'低于 60 分 · ':''}网络估算分 / 100 · 点击查看依据`}>
+      title={`${nikki.isError && route?'同步暂时失败，显示最近有效状态 · ':''}${active?'Nikki 实时入口 · ':standby?'Nikki 分流待用入口 · ':''}${low?'低于 60 分 · ':''}网络估算分 / 100 · 点击查看依据`}>
       V{s.family === "ipv4" ? "4" : "6"}{s.score != null && !query.isError ? <span className="network-estimate-badge-score">· {s.score}</span> : null}
     </button>})}
     {selected && createPortal(<dialog ref={dialog} className="network-estimate-dialog" onClick={e => { e.stopPropagation(); if(e.target === e.currentTarget) setSelected(null); }} onCancel={e => { e.preventDefault(); setSelected(null); }} aria-label="网络估算依据">
