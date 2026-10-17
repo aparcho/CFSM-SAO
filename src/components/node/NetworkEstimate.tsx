@@ -32,12 +32,11 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
     {estimates.filter(s => s.family === "ipv4" ? ipv4 : ipv6).map(s => {
       const active=liveRoutes.find(r=>r.server_id===uuid && r.family===s.family);
       const low=!!active && s.score!=null && s.score<60;
-      return <button type="button" key={s.family} className="ip-stack-badge network-estimate-badge" data-tag="green" data-nikki-active={active?'true':undefined} data-nikki-low={low?'true':undefined}
+      return <button type="button" key={s.family} className="ip-stack-badge network-estimate-badge" data-tag={low?'red':active?'green':'gray'} data-nikki-active={active?'true':undefined} data-nikki-low={low?'true':undefined}
       onClick={e => { e.stopPropagation(); setSelected(s.family); }}
       aria-label={`IPv${s.family === "ipv4" ? "4" : "6"} 网络估算${s.score != null && !query.isError ? ` ${s.score}分` : ""}，查看依据`}
       title={`${active?'Nikki 使用中 · ':''}${low?'低于 60 分 · ':''}网络估算分 / 100 · 点击查看依据`}>
       V{s.family === "ipv4" ? "4" : "6"}{s.score != null && !query.isError ? <span className="network-estimate-badge-score">· {s.score}</span> : null}
-      {active && <span className="network-estimate-active">在用</span>}
     </button>})}
     {selected && createPortal(<dialog ref={dialog} className="network-estimate-dialog" onClick={e => { e.stopPropagation(); if(e.target === e.currentTarget) setSelected(null); }} onCancel={e => { e.preventDefault(); setSelected(null); }} aria-label="网络估算依据">
       <header><strong>网络估算依据</strong><button type="button" onClick={() => setSelected(null)} aria-label="关闭评分依据">×</button></header>
