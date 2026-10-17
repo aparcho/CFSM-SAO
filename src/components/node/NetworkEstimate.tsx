@@ -8,12 +8,13 @@ import { useMinuteClock } from "@/hooks/useClock";
 import { estimateNetwork, type EstimateProbe, type Family } from "@/utils/networkEstimate";
 import "@/styles/network-estimate.css";
 import { cacheKey, readNikkiCache, saveNikkiCache, NIKKI_FRESH_MS } from "@/utils/nikkiCache";
-const schema = z.array(z.object({ run_id:z.string(),family:z.enum(["ipv4","ipv6"]),direction:z.enum(["download","upload"]),tested_at:z.number(),status:z.enum(["ok","no_response","failed"]),mbps:z.number().nullable() }));
+const schema = z.array(z.object({ run_id:z.string(),family:z.enum(["ipv4","ipv6"]),direction:z.enum(["download","upload"]),tested_at:z.number(),status:z.enum(["ok","no_response","failed"]),mbps:z.number().nullable(),duration_seconds:z.number().optional(),retransmits:z.number().nullable().optional() }));
 const nullableNumber=z.number().nullable();
 function speedAge(time:number,now:number){const minutes=Math.max(0,Math.floor((now-time)/60_000));return minutes<60?`${minutes} 分钟`:`${Math.floor(minutes/60)} 小时 ${minutes%60} 分钟`;}
 const periodSchema=z.object({score:z.number(),days:z.number(),runs:z.number(),download:z.number(),upload:z.number()}).nullable();
 const resultSchema=schema.element.optional();
-const estimateSchema=z.object({modelVersion:z.number().optional(),speedAgeMs:nullableNumber.optional(),speedBasis:z.literal("latest").optional(),family:z.enum(["ipv4","ipv6"]),score:nullableNumber,reason:z.string(),
+const retransmissionDirection=z.object({count:z.number(),estimatedMiB:z.number(),perMiB:z.number(),penalty:z.number()}).nullable();
+const estimateSchema=z.object({retransmission:z.object({penalty:z.number(),download:retransmissionDirection,upload:retransmissionDirection}).nullable().optional(),modelVersion:z.number().optional(),speedAgeMs:nullableNumber.optional(),speedBasis:z.literal("latest").optional(),family:z.enum(["ipv4","ipv6"]),score:nullableNumber,reason:z.string(),
   probe:z.object({taskName:z.string(),lastValue:nullableNumber,loss:nullableNumber}).optional(),testedAt:z.number().optional(),download:resultSchema,upload:resultSchema,
   latency:nullableNumber,loss:nullableNumber,speed:nullableNumber,variation:nullableNumber,latencyMs:nullableNumber,
   metrics:z.object({p50:nullableNumber,p95:nullableNumber,samples:z.number(),pairs:z.number(),variationMs:nullableNumber}).nullable(),
@@ -35,7 +36,7 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
   const query = useQuery({ queryKey:["network-estimate",uuid], queryFn:() => cfsmGet(`/api/iperf/results?${new URLSearchParams({id:uuid})}`,schema,{base:getServerApiBase(uuid)}), staleTime:60_000,refetchInterval:60_000,retry:1 });
   const estimates = (["ipv4","ipv6"] as Family[]).map(f => {
     const stored=liveRoutes.find(r=>r.server_id===uuid && r.family===f)?.estimate;
-    return stored?.modelVersion===3?stored:estimateNetwork(f,probes,query.data ?? [],now,offline);
+    return stored?.modelVersion===4?stored:estimateNetwork(f,probes,query.data ?? [],now,offline);
   });
   return <>
     {estimates.filter(s => s.family === "ipv4" ? ipv4 : ipv6).map(s => {
@@ -61,11 +62,13 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
         {s.offpeak && <span>历史其余时段参考（不计当前分）：{s.offpeak.days} 天 / {s.offpeak.runs} 批 · 日汇总下载 {s.offpeak.download.toFixed(1)} / 上传 {s.offpeak.upload.toFixed(1)} Mbps</span>}
         {s.score != null && <>
           <span>单项分 / 100：延迟 {s.latency?.toFixed(1)} · 失败率 {s.loss?.toFixed(1)} · 带宽 {s.speed?.toFixed(1)} · 波动 {s.variation?.toFixed(1) ?? "未计"}</span>
+          <span>重传辅助项：{s.retransmission?`本次扣 ${s.retransmission.penalty.toFixed(2)} 分（总扣分最多 3 分）`:'未计：缺少重传/时长数据或传输量不足 1 MiB'}</span>
+          {s.retransmission && <span>每 MiB 重传：下载 {s.retransmission.download?.perMiB.toFixed(2)??'未计'} / 上传 {s.retransmission.upload?.perMiB.toFixed(2)??'未计'}。传输量由吞吐×时长估算，这是重传强度，非丢包率。</span>}
           <span>权重：延迟 30% / 失败率 20% / 带宽 40% / 波动 10%{s.variation == null ? "；波动缺项，按其余 90% 归一" : ""}。带宽只采用最近一次完整实测，不再混合历史时段。</span>
         </>}
       </div>)}
-      <p>当前线路估算 v0.3，参考 AIM 指标。延迟、失败率与波动仅使用近 10 分钟；延迟按 10 ms 分档，70% 当前延迟＋30% 近期 P95，不足 3 个采样时用当前延迟。波动取相邻有效采样延迟绝对差的均值，失败或缺测处断开，至少需 5 对。</p>
-      <p>带宽采用最近一批双向测速，下载 / 上传各占 70% / 30%，速度曲线区分至 2000 Mbps。最新失败或不完整时不沿用旧高速造分。历史晚高峰仍可参考，但不改变当前分数。</p>
+      <p>当前线路估算 v0.4，参考 AIM 指标。延迟、失败率与波动仅使用近 10 分钟；延迟按 10 ms 分档，70% 当前延迟＋30% 近期 P95，不足 3 个采样时用当前延迟。波动取相邻有效采样延迟绝对差的均值，失败或缺测处断开，至少需 5 对。</p>
+      <p>带宽采用最近一批双向测速，下载 / 上传各占 70% / 30%，速度曲线区分至 2000 Mbps。最新失败或不完整时不沿用旧高速造分。历史晚高峰仍可参考，但不改变当前分数。重传作为辅助扣分项，下载 / 上传按 70% / 30% 合并，缺项不额外扣分。</p>
       <p>当前探针与 deb 测速是不同路径。带宽超过 1 小时提示非当前实测，超过 6 小时标记较早参考，超过 72 小时不计分；无新测速不能证明当前带宽未变。非官方完整 AIM，未计包级抖动及负载延迟。</p>
     </div>
     </dialog>, document.body)}

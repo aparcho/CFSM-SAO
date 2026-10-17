@@ -73,3 +73,20 @@ it('72小时边界不拆批、未来记录不参与，失败率连续扣分且�
   expect(aged.speedAgeMs).toBe(14*3600_000);expect(aged.reason).toContain('较早实测参考');
   expect(aged.score).not.toBeNull(); // 不偷偷加测低流量节点
  });
+
+it('重传是小幅辅助项：同速高重传略低，按传输量归一化且最多扣3分',async()=>{
+ const {retransmissionCost}=await import('../networkEstimate');
+ const withRetrans=(count:number,duration=5)=>batch('latest',now,500,500).map(r=>({...r,duration_seconds:duration,retransmits:count}));
+ const clean=estimateNetwork('ipv4',probe,withRetrans(0),now,false);
+ const rough=estimateNetwork('ipv4',probe,withRetrans(30000),now,false);
+ expect(rough.score!).toBeLessThan(clean.score!);
+ expect(clean.score!-rough.score!).toBeLessThanOrEqual(3);
+ expect(clean.retransmission?.penalty).toBe(0);
+ expect(retransmissionCost(withRetrans(30000)[0])?.perMiB).toBeCloseTo(retransmissionCost(withRetrans(60000,10)[0])!.perMiB);
+ const saturated=estimateNetwork('ipv4',probe,withRetrans(1000000000),now,false);
+ expect(saturated.retransmission?.penalty).toBeCloseTo(3);
+ expect(clean.score!-saturated.score!).toBe(3);
+ // 旧数据/未知不能伪装成0重传；低吞吐小样本已经通过带宽扣分，不放大噪声。
+ expect(estimateNetwork('ipv4',probe,batch('old',now,500,500),now,false).retransmission).toBeNull();
+ expect(retransmissionCost({...withRetrans(57)[0],mbps:0.84})).toBeNull();
+});
