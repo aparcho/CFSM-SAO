@@ -48,14 +48,14 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
       const low=active && s.score!=null && s.score<60;
       return <button type="button" key={s.family} className="ip-stack-badge network-estimate-badge" data-tag={low?'red':active?'green':exit?'blue':standby?'yellow':'gray'} data-nikki-active={active?'true':undefined} data-nikki-exit={exit?'true':undefined} data-nikki-selected={route?.selected?'true':undefined} data-nikki-low={low?'true':undefined}
       onClick={e => { e.stopPropagation(); setSelected(s.family); }}
-      aria-label={`IPv${s.family === "ipv4" ? "4" : "6"} 网络估算${s.score != null && !query.isError ? ` ${s.score.toFixed(1)}分` : ""}，查看依据`}
+      aria-label={`IPv${s.family === "ipv4" ? "4" : "6"} 网络估算${s.score != null && !query.isError ? ` ${Math.round(s.score)}分` : ""}，查看依据`}
       title={`${nikki.isError && route?'同步暂时失败，显示最近有效状态 · ':''}${route?routeRole(route)+' · ':''}${low?'低于 60 分 · ':''}${s.testedAt && now-s.testedAt>3600_000?`带宽参考距今 ${speedAge(s.testedAt,now)} · `:''}网络估算分 / 100 · 点击查看依据`}>
-      V{s.family === "ipv4" ? "4" : "6"}{s.score != null && !query.isError ? <span className="network-estimate-badge-score">· {s.score.toFixed(1)}</span> : null}
+      V{s.family === "ipv4" ? "4" : "6"}{s.score != null && !query.isError ? <span className="network-estimate-badge-score">· {Math.round(s.score)}</span> : null}
     </button>})}
     {selected && createPortal(<dialog ref={dialog} className="network-estimate-dialog" onClick={e => { e.stopPropagation(); if(e.target === e.currentTarget) setSelected(null); }} onCancel={e => { e.preventDefault(); setSelected(null); }} aria-label="网络估算依据">
       <header><strong>网络估算依据</strong><button type="button" onClick={() => setSelected(null)} aria-label="关闭评分依据">×</button></header>
     <div className="network-estimate-body">
-      {estimates.filter(s => s.family === selected).map(s => <div className="network-estimate-family" key={s.family}><b>IPv{s.family === "ipv4" ? "4" : "6"} · {query.isError ? "测速读取失败" : query.isPending ? "加载中" : s.reason}{s.score != null && !query.isError ? ` · ${s.score.toFixed(1)}/100` : ""}</b>
+      {estimates.filter(s => s.family === selected).map(s => <div className="network-estimate-family" key={s.family}><b>IPv{s.family === "ipv4" ? "4" : "6"} · {query.isError ? "测速读取失败" : query.isPending ? "加载中" : s.reason}{s.score != null && !query.isError ? ` · ${Math.round(s.score)}/100` : ""}</b>
         {liveRoutes.filter(r=>r.server_id===uuid && r.family===s.family).map(r=><span key="nikki">{routeRole(r)} · {r.score==null?'评分数据不足':!r.active?r.exit_active?'海外出口角色，不触发入口低分提醒':'分流已选中，暂未检测到实时流量':r.score<60?(r.alerted?'已发送低分提醒':'低分观察中，连续 5 分钟后提醒'):'仅提醒，不自动切换'} · 后台每分钟检查。{r.notification_error||''}<br/>绿色：最近 5 分钟有流量增长；黄色：分流已选中但暂时空闲；蓝色：活跃中转路线的海外出口；灰色：其他。入口与出口兼具时绿色优先，入口低分时红色优先。出口按已核实的中转映射或 dialer-proxy 识别；分数仍是该 VPS 自身测量，不代表整条中转路线。最近同步 {new Date(r.evaluated_at).toLocaleTimeString('zh-CN')}</span>)}
         <span>{s.probe?.taskName ?? "未配置对应地址族探针"} · 当前延迟 {s.probe?.lastValue == null ? "—" : `${Math.round(s.probe.lastValue)} ms`} · 近 10 分钟探测失败 {s.probe?.loss == null ? "—" : `${s.probe.loss.toFixed(1)}%`}</span>
         {s.metrics && <span>近 10 分钟探针：{s.metrics.samples} 个有效采样 · P50 {s.metrics.p50?.toFixed(1) ?? "—"} ms · P95 {s.metrics.p95?.toFixed(1) ?? "—"} ms</span>}
@@ -71,7 +71,7 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
         </>}
       </div>)}
       <p>当前线路估算 v0.7，参考 AIM 指标。延迟、失败率与波动仅使用近 10 分钟；延迟按 10 ms 分档，70% 当前延迟＋30% 近期 P95，不足 3 个采样时用当前延迟。波动取相邻有效采样延迟绝对差的均值，失败或缺测处断开，至少需 5 对。</p>
-      <p>带宽采用最近一批双向测速，下载 / 上传各占 70% / 30%，带宽单项锚点：100 Mbps 为 20 分、200 为 40 分、300 为 60 分、500 为 80 分、1000 为 95 分，区分至 2000 Mbps。锚点之间连续按 log1p 插值，没有整档跳变；总分保留一位小数。这些是自定义体验标尺，不是官方 AIM 标准。最新失败或不完整时不沿用旧高速造分。历史晚高峰仍可参考，但不改变当前分数。重传作为辅助扣分项，下载 / 上传按 70% / 30% 合并，缺项不额外扣分。</p>
+      <p>带宽采用最近一批双向测速，下载 / 上传各占 70% / 30%，带宽单项锚点：100 Mbps 为 20 分、200 为 40 分、300 为 60 分、500 为 80 分、1000 为 95 分，区分至 2000 Mbps。锚点之间连续按 log1p 插值，没有整档跳变；总分显示为整数。这些是自定义体验标尺，不是官方 AIM 标准。最新失败或不完整时不沿用旧高速造分。历史晚高峰仍可参考，但不改变当前分数。重传作为辅助扣分项，下载 / 上传按 70% / 30% 合并，缺项不额外扣分。</p>
       <p>500–1000 Mbps 带宽单项换算：{[500,600,700,800,900,1000].map(mbps=>`${mbps} Mbps → ${bandwidthScore(mbps).toFixed(1)} 分`).join("；")}。这是单方向带宽单项分，合并双向后按 40% 计入总分。</p>
       <p>当前探针与 deb 测速是不同路径。带宽超过 1 小时提示非当前实测，超过 6 小时标记较早参考，超过 72 小时不计分；无新测速不能证明当前带宽未变。非官方完整 AIM，未计包级抖动及负载延迟。</p>
     </div>
