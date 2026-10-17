@@ -17,7 +17,7 @@ const estimateSchema=z.object({family:z.enum(["ipv4","ipv6"]),score:nullableNumb
   metrics:z.object({p50:nullableNumber,p95:nullableNumber,samples:z.number(),pairs:z.number(),variationMs:nullableNumber}).nullable(),
   peak:periodSchema,offpeak:periodSchema,peakWeight:z.number(),excludedBatches:z.number()});
 const nikkiSchema=z.object({observed_at:nullableNumber,fresh:z.boolean(),routes:z.array(z.object({server_id:z.string(),family:z.enum(["ipv4","ipv6"]),
-  score:nullableNumber,reason:z.string(),low_since:nullableNumber,alerted:z.boolean(),notification_error:z.string().nullable(),evaluated_at:z.number(),estimate:estimateSchema}))});
+  score:nullableNumber,reason:z.string(),low_since:nullableNumber,alerted:z.boolean(),active:z.boolean().default(true),selected:z.boolean().default(false),notification_error:z.string().nullable(),evaluated_at:z.number(),estimate:estimateSchema}))});
 export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:string;probes:EstimateProbe[];offline:boolean;ipv4?:string|null;ipv6?:string|null}) {
   const [selected, setSelected] = useState<Family|null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -30,19 +30,20 @@ export function NetworkEstimate({ uuid, probes, offline, ipv4, ipv6 }: {uuid:str
   const estimates = (["ipv4","ipv6"] as Family[]).map(f => liveRoutes.find(r=>r.server_id===uuid && r.family===f)?.estimate ?? estimateNetwork(f,probes,query.data ?? [],now,offline));
   return <>
     {estimates.filter(s => s.family === "ipv4" ? ipv4 : ipv6).map(s => {
-      const active=liveRoutes.find(r=>r.server_id===uuid && r.family===s.family);
-      const low=!!active && s.score!=null && s.score<60;
-      return <button type="button" key={s.family} className="ip-stack-badge network-estimate-badge" data-tag={low?'red':active?'green':'gray'} data-nikki-active={active?'true':undefined} data-nikki-low={low?'true':undefined}
+      const route=liveRoutes.find(r=>r.server_id===uuid && r.family===s.family);
+      const active=route?.active===true,standby=!active && route?.selected===true;
+      const low=active && s.score!=null && s.score<60;
+      return <button type="button" key={s.family} className="ip-stack-badge network-estimate-badge" data-tag={low?'red':active?'green':standby?'yellow':'gray'} data-nikki-active={active?'true':undefined} data-nikki-selected={route?.selected?'true':undefined} data-nikki-low={low?'true':undefined}
       onClick={e => { e.stopPropagation(); setSelected(s.family); }}
       aria-label={`IPv${s.family === "ipv4" ? "4" : "6"} 网络估算${s.score != null && !query.isError ? ` ${s.score}分` : ""}，查看依据`}
-      title={`${active?'Nikki 使用中 · ':''}${low?'低于 60 分 · ':''}网络估算分 / 100 · 点击查看依据`}>
+      title={`${active?'Nikki 实时入口 · ':standby?'Nikki 分流待用入口 · ':''}${low?'低于 60 分 · ':''}网络估算分 / 100 · 点击查看依据`}>
       V{s.family === "ipv4" ? "4" : "6"}{s.score != null && !query.isError ? <span className="network-estimate-badge-score">· {s.score}</span> : null}
     </button>})}
     {selected && createPortal(<dialog ref={dialog} className="network-estimate-dialog" onClick={e => { e.stopPropagation(); if(e.target === e.currentTarget) setSelected(null); }} onCancel={e => { e.preventDefault(); setSelected(null); }} aria-label="网络估算依据">
       <header><strong>网络估算依据</strong><button type="button" onClick={() => setSelected(null)} aria-label="关闭评分依据">×</button></header>
     <div className="network-estimate-body">
       {estimates.filter(s => s.family === selected).map(s => <div className="network-estimate-family" key={s.family}><b>IPv{s.family === "ipv4" ? "4" : "6"} · {query.isError ? "测速读取失败" : query.isPending ? "加载中" : s.reason}{s.score != null && !query.isError ? ` · ${s.score}/100` : ""}</b>
-        {liveRoutes.filter(r=>r.server_id===uuid && r.family===s.family).map(r=><span key="nikki">Nikki 使用中 · {r.score==null?'评分数据不足':r.score<60?(r.alerted?'已发送低分提醒':'低分观察中，连续 5 分钟后提醒'):'仅提醒，不自动切换'} · 后台每分钟检查。{r.notification_error||''}<br/>关联的是 VPS 公网入口段，不能代表中转后整条线路。最近同步 {new Date(r.evaluated_at).toLocaleTimeString('zh-CN')}</span>)}
+        {liveRoutes.filter(r=>r.server_id===uuid && r.family===s.family).map(r=><span key="nikki">{r.active?'Nikki 实时入口':'Nikki 分流待用入口'} · {r.score==null?'评分数据不足':!r.active?'分流已选中，暂未检测到实时流量':r.score<60?(r.alerted?'已发送低分提醒':'低分观察中，连续 5 分钟后提醒'):'仅提醒，不自动切换'} · 后台每分钟检查。{r.notification_error||''}<br/>绿色：最近 120 秒有流量增长；黄色：分流已选中但暂时空闲；灰色：其他。仅关联 Nikki 到首个公网入口，不标记海外中转出口。最近同步 {new Date(r.evaluated_at).toLocaleTimeString('zh-CN')}</span>)}
         <span>{s.probe?.taskName ?? "未配置对应地址族探针"} · 当前延迟 {s.probe?.lastValue == null ? "—" : `${Math.round(s.probe.lastValue)} ms`} · 探测失败 {s.probe?.loss == null ? "—" : `${s.probe.loss.toFixed(1)}%`}</span>
         {s.metrics && <span>近 2 小时探针：{s.metrics.samples} 个有效采样 · P50 {s.metrics.p50?.toFixed(1) ?? "—"} ms · P95 {s.metrics.p95?.toFixed(1) ?? "—"} ms</span>}
         {s.metrics && <span>延迟波动 {s.metrics.variationMs?.toFixed(1) ?? "样本不足"}{s.metrics.variationMs != null ? " ms" : ""} · {s.metrics.pairs} 对连续采样（非包级抖动）</span>}
