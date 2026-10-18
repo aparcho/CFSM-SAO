@@ -6,6 +6,7 @@ export function useAuth() {
     queryKey: ["me"],
     queryFn: ({ signal }) => getMe({ signal }),
     initialData: getInitialAuth,
+    initialDataUpdatedAt: 0,
     staleTime: 30_000,
     // 后台在新标签页登录后，返回时必须立即校验。
     refetchOnWindowFocus: "always",

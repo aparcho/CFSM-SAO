@@ -261,11 +261,28 @@ describe("getPublic", () => {
 });
 
 describe("getMe", () => {
-  it("reports a logged-out visitor without hitting the network", async () => {
+  it("无本地JWT也向服务端核实Cookie，真正未登录才返回访客", async () => {
+    fetchMock.mockImplementation(jsonReply({ authorization: false }));
     const me = await getMe();
-
     expect(me.logged_in).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![1].credentials).toBe("include");
+  });
+
+  it("后台Cookie已登录时，无本地JWT仍允许进入私有前台", async () => {
+    fetchMock.mockImplementation(jsonReply({ authorization: true, is_public: false }));
+    expect(window.localStorage.getItem("jwt_token")).toBeNull();
+    expect((await getMe()).logged_in).toBe(true);
+  });
+
+  it("后台登录后重新校验，不沿用登录前的配置缓存", async () => {
+    fetchMock.mockImplementationOnce(jsonReply({ authorization: false, is_public: false }));
+    await getPublic();
+    fetchMock.mockImplementationOnce(jsonReply({ authorization: true, is_public: false }));
+    expect((await getMe()).logged_in).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    fetchMock.mockImplementationOnce(jsonReply({ authorization: false, is_public: false }));
+    expect((await getMe()).logged_in).toBe(false);
   });
 
   it("derives the login state and custom nickname from storage and config", async () => {

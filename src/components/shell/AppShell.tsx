@@ -37,7 +37,8 @@ export function AppShell() {
   const isCheckingAccess =
     isDataRoute &&
     (publicConfig.isPending ||
-      (publicConfig.data?.private_site === true && auth.isPending));
+      (publicConfig.data?.private_site === true &&
+        (auth.isPending || (auth.isFetching && auth.data?.logged_in !== true))));
   const isMockError =
     new URLSearchParams(search).get("mock_error") === "1" ||
     new URLSearchParams(search).get("mock-error") === "1" ||
